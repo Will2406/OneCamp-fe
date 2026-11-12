@@ -23,6 +23,9 @@ import {
 // both the # and + pickers by filtering to the requested types).
 function mapSearchResult(result: any, types: ReferenceType[]): ReferenceItem | null {
   const type = result?.type as string
+  // A file is linked through the doc node that holds it: its own node in Docs &
+  // Files, or the page it sits in. A file no doc holds (a task's) has no page to open.
+  if (type === "attachment") return types.includes("doc") ? fileReference(result.attachment) : null
   if (!types.includes(type as ReferenceType)) return null
 
   switch (type) {
@@ -63,6 +66,19 @@ function mapSearchResult(result: any, types: ReferenceType[]): ReferenceItem | n
       }
     default:
       return null
+  }
+}
+
+/** A file search hit as a doc reference, or null when no doc holds it. */
+function fileReference(file: any): ReferenceItem | null {
+  if (!file?.attachment_doc_id) return null
+  const name: string = file.attachment_file_name || file.attachment_doc_title || "Untitled file"
+  const holder: string = file.attachment_doc_title || ""
+  return {
+    routeId: file.attachment_doc_id,
+    label: name,
+    refType: "doc",
+    subtitle: holder && holder !== name ? `File · in ${holder}` : "File",
   }
 }
 
