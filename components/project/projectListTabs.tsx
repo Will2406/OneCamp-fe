@@ -36,11 +36,11 @@ import { app_task_path } from "@/types/paths"
 /**
  * Mobile project detail tab bar: the Tasks list, the Board (one column per
  * screen, swiped sideways, as in Asana's app), the Timeline (to read; a task
- * opens to change its dates), its Updates and the Attachments grid. Tabs use the shared
+ * opens to change its dates), its Updates and its Docs & Files. Tabs use the shared
  * `SectionTabs` primitive (Notion-style underline) so the look matches
  * channel / chat / activity tabs.
  */
-type Tab = "task" | "board" | "backlog" | "timeline" | "updates" | "attachment" | "docs"
+type Tab = "task" | "board" | "backlog" | "timeline" | "updates" | "docs"
 
 // ?tab= names the desktop's tabs (list, kanban, attachments) or the phone's
 // own; a link to a project's board opens its board on a phone too. The
@@ -53,11 +53,12 @@ const FROM_ADDRESS: Record<string, Tab> = {
     backlog: "backlog",
     timeline: "timeline",
     updates: "updates",
-    attachments: "attachment",
-    attachment: "attachment",
+    // The Attachments tab is gone: an old link to it opens Docs & Files.
+    attachments: "docs",
+    attachment: "docs",
     docs: "docs",
 }
-const TO_ADDRESS: Record<Tab, string> = { task: "list", board: "kanban", backlog: "backlog", timeline: "timeline", updates: "updates", attachment: "attachments", docs: "docs" }
+const TO_ADDRESS: Record<Tab, string> = { task: "list", board: "kanban", backlog: "backlog", timeline: "timeline", updates: "updates", docs: "docs" }
 
 export function ProjectListTabs({ projectId }: { projectId: string }) {
     const params = useSearchParams()
@@ -116,7 +117,6 @@ export function ProjectListTabs({ projectId }: { projectId: string }) {
                 { value: "backlog", label: "Backlog" },
                 { value: "timeline", label: "Timeline" },
                 { value: "updates", label: "Updates" },
-                { value: "attachment", label: "Attachments" },
                 { value: "docs", label: "Docs & Files" },
             ]}
             value={selectedTab}
@@ -145,9 +145,6 @@ export function ProjectListTabs({ projectId }: { projectId: string }) {
             </SectionTabsContent>
             <SectionTabsContent value="updates" className="flex-1 min-h-0 overflow-y-auto">
                 <ProjectUpdates projectId={projectId} />
-            </SectionTabsContent>
-            <SectionTabsContent value="attachment" className="flex-1 min-h-0">
-                <ProjectListTabContent selectedTab="attachment" projectId={projectId} />
             </SectionTabsContent>
             <SectionTabsContent value="docs" className="flex-1 min-h-0 overflow-y-auto">
                 <SpaceDocs space={`project:${projectId}` as const} name={info?.project_name} />

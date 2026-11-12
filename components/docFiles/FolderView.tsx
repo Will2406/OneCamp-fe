@@ -13,6 +13,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { DocTree, adapterFor } from "@/components/docTree/DocTree"
+import { FolderGrid } from "@/components/docFiles/FolderGrid"
 import { DocRowMenu } from "@/components/docTree/DocRowMenu"
 import { FileDropZone } from "@/components/docFiles/FileDropZone"
 import { NewSplitButton } from "@/components/docFiles/NewMenu"
@@ -20,20 +21,23 @@ import { NodeLink } from "@/components/docFiles/NodeLink"
 import { NodeMark } from "@/components/docFiles/NodeMark"
 import { IntentLink } from "@/components/navigationBar/desktop/IntentLink"
 import type { MoveStop } from "@/lib/docMove"
-import { seedNodeInfo } from "@/components/docFiles/fileActions"
+import { openLink, seedNodeInfo } from "@/components/docFiles/fileActions"
 import { useFilePicker } from "@/components/docFiles/useFilePicker"
 import { useNodeDialogs } from "@/components/docFiles/useNodeDialogs"
 import { useCreateDoc } from "@/components/doc/useCreateDoc"
-import { readLimit, useTreeLevel } from "@/components/tree/useTree"
+import { pauseReadAheadWhileOpening, readLimit, useTreeLevel } from "@/components/tree/useTree"
 import { Button } from "@/components/ui/button"
+import { SegmentedControl } from "@/components/ui/segmentedControl"
 import { SpotDocs } from "@/components/ui/graphics"
 import { swatchName } from "@/components/ui/campSwatches"
 import { useFetch } from "@/hooks/useFetch"
+import { useStoredState } from "@/hooks/useStoredState"
 import { OWN_ERRORS } from "@/lib/axiosInstance"
 import type { CampHue } from "@/lib/campHue"
 import { atLeast, docLevelOf } from "@/lib/docs/abilities"
-import { ChevronRight, Upload } from "@/lib/icons"
-import { ancestorsKey, type Envelope } from "@/services/docGraphService"
+import { ChevronRight, LayoutGrid, List, Upload } from "@/lib/icons"
+import { openingOf } from "@/lib/docs/docNode"
+import { ancestorsKey, type DocTreeRow, type Envelope } from "@/services/docGraphService"
 import type { DocInfoInterface } from "@/types/doc"
 import type { DocAncestors, DocNodeFields, TreeNodeJSON } from "@/types/docGraph"
 import { app_doc_path } from "@/types/paths"
@@ -46,6 +50,11 @@ export const DOCS_HUE: CampHue = "sky"
 
 /** A level of a folder's contents, as many as the page shows before "Show more". */
 const PAGE_CAP = 50
+
+/** How a folder lays out its contents: the tree's rows, or cards (Toast). Remembered in this browser, for every folder. */
+type FolderLayout = "list" | "grid"
+const LAYOUT_KEY = "oc-folder-view"
+const isLayout = (v: unknown): v is FolderLayout => v === "list" || v === "grid"
 
 export type NodeInfo = DocInfoInterface & DocNodeFields
 
@@ -145,6 +154,23 @@ export function FolderView({ folder }: { folder: NodeInfo }) {
   const place = { parentId: id, parentPrivate: folder.doc_private }
   const moveStart: MoveStop[] = [...ancestors.filter((a) => a.uuid).map((a) => ({ id: a.uuid!, title: a.title ?? "" })), { id, title }]
   const count = level ? level.count + level.hidden : null
+  const [layout, setLayout] = useStoredState<FolderLayout>(LAYOUT_KEY, "list", isLayout)
+  const router = useRouter()
+  // A card opens as its row does in the tree: a file's preview, a link's
+  // page elsewhere, a folder or a page at its own address.
+  const openNode = (row: DocTreeRow) => {
+    switch (openingOf(row.node.node_kind)) {
+      case "preview":
+        return dialogs.open({ kind: "preview", file: { id: row.id, title: row.title, facts: row.node.file, canEdit: row.canEdit !== false } })
+      case "external":
+        return openLink(row.node.link_url)
+      case "folder":
+        seedNodeInfo(row.node)
+        break
+    }
+    pauseReadAheadWhileOpening()
+    router.push(`${app_doc_path}/${row.id}`)
+  }
 
   return (
     <div data-folder-view={id} className="flex h-full min-h-0 flex-col overflow-y-auto bg-sheet">
@@ -159,6 +185,17 @@ export function FolderView({ folder }: { folder: NodeInfo }) {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
+            {empty ? null : (
+              <SegmentedControl<FolderLayout>
+                aria-label="View"
+                value={layout}
+                onValueChange={setLayout}
+                options={[
+                  { value: "list", label: <span className="sr-only">List</span>, icon: List, title: "List" },
+                  { value: "grid", label: <span className="sr-only">Grid</span>, icon: LayoutGrid, title: "Grid" },
+                ]}
+              />
+            )}
             {canEdit ? (
               <NewSplitButton
                 running={busy}
@@ -188,6 +225,8 @@ export function FolderView({ folder }: { folder: NodeInfo }) {
         <div className="mt-6 min-h-[50vh]">
           {empty ? (
             <FolderEmpty title={title} canEdit={canEdit} onUpload={() => picker.pick({ parent: id }, title)} />
+          ) : layout === "grid" && level ? (
+            <FolderGrid rows={level.nodes} more={Math.max(0, level.count - level.nodes.length)} onOpen={openNode} onShowList={() => setLayout("list")} />
           ) : (
             <DocTree
               space="workspace"

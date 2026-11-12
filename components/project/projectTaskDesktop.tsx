@@ -5,7 +5,7 @@ import { useFetch } from "@/hooks/useFetch"
 import { GetEndpointUrl } from "@/services/endPoints"
 import { ProjectsGet } from "@/services/endpoints/projects"
 import {ProjectInfoRawInterface} from "@/types/project"
-import { FileText, List, Megaphone, Paperclip } from "@/lib/icons";
+import { FileText, List, Megaphone } from "@/lib/icons";
 import { TabLoading } from "@/components/task/TabLoading"
 import { lazyView } from "@/lib/lazy/lazyView"
 import { ProjectActionsMenu } from "@/components/project/ProjectToolButtons";
@@ -34,7 +34,6 @@ import { IdentityMark } from "@/components/ui/graphics/IdentityMark"
 const Board = lazyView(() => import("@/components/project/projectTaskKanban"))
 const Timeline = lazyView(() => import("@/components/project/timeline/ProjectTimeline"))
 const Updates = lazyView(() => import("@/components/projectUpdates/ProjectUpdates"))
-const Files = lazyView(() => import("@/components/project/ProjectAttachments"))
 // The project's docs: the pages made in its space (docs programme B5).
 const Backlog = lazyView(() => import("@/components/work/backlog/ProjectBacklog"))
 const Docs = lazyView(() => import("@/components/docTree/SpaceDocs"))
@@ -53,8 +52,12 @@ import { LazyConnected } from "@/components/workGraph/LazyConnected"
 import { ProjectLinksStrip } from "@/components/project/ProjectLinksStrip"
 import { ProjectPlanStrip } from "@/components/project/ProjectPlanStrip"
 
-const VALID_TABS = ["list", "kanban", "backlog", "timeline", "updates", "attachments", "docs"] as const
+const VALID_TABS = ["list", "kanban", "backlog", "timeline", "updates", "docs"] as const
 type TabValue = (typeof VALID_TABS)[number]
+
+// The Attachments tab is gone: a project's files live in Docs & Files, so an
+// old ?tab=attachments link opens there.
+const TAB_ALIASES: Record<string, TabValue> = { attachments: "docs" }
 
 export const ProjectTaskDesktop = ({ projectId }: { projectId: string }) => {
     const { t } = useTranslation()
@@ -71,7 +74,8 @@ export const ProjectTaskDesktop = ({ projectId }: { projectId: string }) => {
     const pathname = usePathname()
 
     const [selectedTab, setSelectedTab] = useState<TabValue>(() => {
-        const tabFromUrl = searchParams.get("tab")
+        const tabFromUrl = searchParams.get("tab") ?? ""
+        if (tabFromUrl in TAB_ALIASES) return TAB_ALIASES[tabFromUrl]
         return VALID_TABS.includes(tabFromUrl as TabValue) ? (tabFromUrl as TabValue) : "list"
     })
     const seen = useSeenTabs(selectedTab)
@@ -106,7 +110,7 @@ export const ProjectTaskDesktop = ({ projectId }: { projectId: string }) => {
         return () => window.clearTimeout(t)
     }, [])
 
-    // 1 to 5 switch tabs (work.md W17), while nothing else has the keys.
+    // 1 to 6 switch tabs (work.md W17), while nothing else has the keys.
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return
@@ -196,7 +200,6 @@ export const ProjectTaskDesktop = ({ projectId }: { projectId: string }) => {
                             { value: "backlog", label: "Backlog", icon: <ListTodo /> },
                             { value: "timeline", label: "Timeline", icon: <ChartGantt /> },
                             { value: "updates", label: "Updates", icon: <Megaphone /> },
-                            { value: "attachments", label: "Attachments", icon: <Paperclip />, count: project?.project_attachments?.length },
                             { value: "docs", label: "Docs & Files", icon: <FileText /> },
                         ]}
                     />
@@ -228,9 +231,6 @@ export const ProjectTaskDesktop = ({ projectId }: { projectId: string }) => {
                         </KeptTab>
                         <TabsContent value="updates" className="mt-0 [animation:work-fade-in_120ms_var(--ease-out)]">
                             <Updates.View fallback={<TabLoading kind="list" />} render={(m) => <m.ProjectUpdates projectId={projectId} />} />
-                        </TabsContent>
-                        <TabsContent value="attachments" className="mt-0 [animation:work-fade-in_120ms_var(--ease-out)]">
-                            <Files.View fallback={<TabLoading kind="list" />} render={(m) => <m.ProjectAttachments projectId={projectId} projectName={project?.project_name} canLink={access.add_files} />} />
                         </TabsContent>
                         <TabsContent value="docs" className="mt-0 [animation:work-fade-in_120ms_var(--ease-out)]">
                             <Docs.View fallback={<TabLoading kind="list" />} render={(m) => <m.default space={`project:${projectId}` as const} name={project?.project_name} />} />

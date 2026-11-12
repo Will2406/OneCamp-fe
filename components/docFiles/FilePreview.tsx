@@ -30,12 +30,11 @@ import { ArrowLeft, Download, History, Replace, X } from "@/lib/icons"
 import { displayNameOf } from "@/lib/personName"
 import { avatarSeed } from "@/lib/utils/getAvatarColor"
 import { agoOrDate, fullDateTime } from "@/lib/utils/date/shortDate"
-import { getAttachmentType } from "@/lib/utils/file/getAttachmentType"
+import { stageTypeOf } from "@/lib/utils/file/stageTypeOf"
 import { formatFileSizeForAttachment } from "@/lib/utils/format/formatFileSizeForAttachment"
 import { cn } from "@/lib/utils/helpers/cn"
 import { versionFileKey, versionsKey, versionsOf } from "@/services/docFilesService"
 import type { Envelope } from "@/services/docGraphService"
-import type { AttachmentType } from "@/types/attachment"
 import type { DocFileFacts, DocFileVersion, DocFileVersions } from "@/types/docGraph"
 import type { GetMediaURLRes } from "@/types/file"
 
@@ -48,16 +47,8 @@ export interface PreviewFile {
   canEdit: boolean
 }
 
-/** What the stage draws a file as, from its name and then its media type. Pure. */
-export function stageTypeOf(name: string, mime?: string): AttachmentType {
-  const byName = getAttachmentType(name)
-  if (byName !== "other") return byName
-  const m = (mime ?? "").toLowerCase()
-  if (m.startsWith("image/")) return "image"
-  if (m.startsWith("video/")) return "video"
-  if (m.startsWith("audio/")) return "audio"
-  return m ? "document" : "other"
-}
+// What the stage draws a file as: shared with a folder's grid (lib/utils/file/stageTypeOf).
+export { stageTypeOf }
 
 /** "3.0 MB · Sam Rivera · 2h ago". */
 function versionLine(v: Pick<DocFileVersion, "size_bytes" | "created_by" | "created_at">): string {

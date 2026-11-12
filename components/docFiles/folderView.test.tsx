@@ -164,6 +164,50 @@ describe("a folder, opened", () => {
   })
 })
 
+// A folder of photos read as a list hides what they are: Grid lays its
+// contents out as cards, the project files' cards, an image with its own
+// picture, and the choice is remembered in this browser.
+describe("a folder as a grid", () => {
+  const photo: TreeNodeJSON = { kind: "doc", uuid: "photo-1", title: "latte.jpg", has_children: false, can_edit: true, node_kind: "file", file: { name: "latte.jpg", size_bytes: 268_000, mime: "image/jpeg", versions: 1, attachment_id: "att-3" } }
+  beforeEach(() => {
+    localStorage.removeItem("oc-folder-view")
+    answers["/doc/children?parent=folder-1&limit=100"] = level([...contents, photo])
+    answers["/doc/getFile/photo-1/att-3"] = { url: "https://files.test/latte.jpg" }
+    answers["/doc/getFile/nda-1/att-1"] = { url: "https://files.test/nda.pdf" }
+  })
+
+  it("lays its contents out as cards once Grid is chosen, an image with its picture, and remembers it", async () => {
+    show(info({}))
+    await screen.findByRole("treeitem", { name: "latte.jpg" })
+    fireEvent.click(screen.getByRole("radio", { name: "Grid" }))
+    await waitFor(() => expect(document.querySelectorAll("[data-folder-grid] [data-file-card]")).toHaveLength(2))
+    expect(screen.queryByRole("tree")).toBeNull()
+    await waitFor(() => expect(document.querySelector<HTMLImageElement>("[data-folder-grid] img")?.src).toBe("https://files.test/latte.jpg"))
+    expect(screen.getByRole("button", { name: "MSA drafts" }).closest("[data-folder-grid]")).not.toBeNull()
+    expect(localStorage.getItem("oc-folder-view")).toBe('"grid"')
+    cleanup()
+    show(info({}))
+    await waitFor(() => expect(document.querySelectorAll("[data-folder-grid] [data-file-card]")).toHaveLength(2))
+    expect(screen.getByRole("radio", { name: "Grid" })).toHaveAttribute("aria-checked", "true")
+  })
+
+  it("opens a file's preview from its card, and a folder in place", async () => {
+    localStorage.setItem("oc-folder-view", '"grid"')
+    show(info({}))
+    fireEvent.click(await screen.findByRole("button", { name: "latte.jpg" }))
+    expect(await screen.findByRole("dialog", {}, { timeout: 5000 })).toHaveAttribute("data-file-preview", "photo-1")
+    fireEvent.click(screen.getByRole("button", { name: "MSA drafts" }))
+    expect(push).toHaveBeenCalledWith("/app/doc/msa-1")
+  })
+
+  it("keeps List as it was: the tree, the default", async () => {
+    show(info({}))
+    expect(await screen.findByRole("tree", { name: "Contracts" })).toBeTruthy()
+    expect(screen.getByRole("radio", { name: "List" })).toHaveAttribute("aria-checked", "true")
+    expect(document.querySelector("[data-folder-grid]")).toBeNull()
+  })
+})
+
 describe("a file and a link at their own address", () => {
   it("shows a file's card and opens its preview", async () => {
     answers["/doc/files/file-9/versions"] = { msg: "ok", data: { versions: [{ n: 2, attachment_id: "att-2", name: "brief.pdf", size_bytes: 2048, mime: "application/pdf", created_at: "2026-10-20T09:00:00Z" }] } }

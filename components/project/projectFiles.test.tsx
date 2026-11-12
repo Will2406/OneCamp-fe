@@ -138,11 +138,11 @@ describe("the desktop Files tab", () => {
     expect(confirm.mock.calls[0][0]).toMatchObject({ title: "Delete the file “brief.pdf”?", destructive: true })
   })
 
-  // Docs & Files is the project's place for files (docs F1b): this tab holds
-  // what tasks and comments carry, and says so (agreed with PROJ-LEAD-4).
-  it("is labelled Attachments, on a computer and on a phone", () => {
-    expect(readFileSync("components/project/projectTaskDesktop.tsx", "utf8")).toMatch(/value: "attachments", label: "Attachments"/)
-    expect(readFileSync("components/project/projectListTabs.tsx", "utf8")).toMatch(/value: "attachment", label: "Attachments"/)
+  // Docs & Files is the project's one place for files (Toast): a project no
+  // longer shows an Attachments tab, on a computer or on a phone.
+  it("has no Attachments tab, on a computer or on a phone", () => {
+    expect(readFileSync("components/project/projectTaskDesktop.tsx", "utf8")).not.toMatch(/label: "Attachments"/)
+    expect(readFileSync("components/project/projectListTabs.tsx", "utf8")).not.toMatch(/label: "Attachments"/)
   })
 })
 
